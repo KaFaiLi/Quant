@@ -255,8 +255,9 @@ class PairsMeanReversionBacktest:
 
 def run_pairs(pair: Tuple[str, str] = ("BTC/USDT", "ETH/USDT"), timeframe: str = "1d"):
     import sys
-    sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-    from data_pipeline import load_ohlcv, fetch_ohlcv
+    project_root = str(Path(__file__).parent.parent.parent)
+    if project_root not in sys.path: sys.path.insert(0, project_root)
+    from scripts.data_pipeline import load_ohlcv, fetch_ohlcv
 
     sym_y, sym_x = pair
     for sym in [sym_y, sym_x]:

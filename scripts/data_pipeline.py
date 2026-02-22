@@ -21,7 +21,7 @@ DATA_DIR = Path(__file__).parent.parent / "data" / "processed"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def get_exchange(exchange_id: str = "binance") -> ccxt.Exchange:
+def get_exchange(exchange_id: str = "okx") -> ccxt.Exchange:
     exchange_class = getattr(ccxt, exchange_id)
     exchange = exchange_class({
         "enableRateLimit": True,
@@ -30,12 +30,23 @@ def get_exchange(exchange_id: str = "binance") -> ccxt.Exchange:
     return exchange
 
 
+# Per-exchange OHLCV page limits (some have lower caps than the requested limit)
+EXCHANGE_PAGE_LIMITS = {
+    "binance": 1000,
+    "okx": 300,
+    "kucoin": 1500,
+    "gate": 1000,
+    "mexc": 1000,
+    "bybit": 1000,
+}
+
+
 def fetch_ohlcv(
     symbol: str,
     timeframe: str = "1h",
     since: Optional[str] = None,         # e.g. "2023-01-01"
     limit_per_call: int = 1000,
-    exchange_id: str = "binance",
+    exchange_id: str = "okx",
     save: bool = True,
 ) -> pd.DataFrame:
     """
@@ -43,6 +54,9 @@ def fetch_ohlcv(
     Returns a DataFrame with columns: timestamp, open, high, low, close, volume
     """
     exchange = get_exchange(exchange_id)
+
+    # Respect exchange-specific page size caps
+    effective_limit = min(limit_per_call, EXCHANGE_PAGE_LIMITS.get(exchange_id, limit_per_call))
 
     if since:
         since_ts = int(datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp() * 1000)
@@ -56,14 +70,14 @@ def fetch_ohlcv(
     current_since = since_ts
 
     while True:
-        candles = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=current_since, limit=limit_per_call)
+        candles = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=current_since, limit=effective_limit)
         if not candles:
             break
         all_candles.extend(candles)
         last_ts = candles[-1][0]
         log.info(f"  Fetched {len(candles)} candles, up to {datetime.fromtimestamp(last_ts/1000, tz=timezone.utc).date()}")
 
-        if len(candles) < limit_per_call:
+        if len(candles) < effective_limit:
             break
 
         current_since = last_ts + 1
@@ -87,7 +101,7 @@ def fetch_ohlcv(
 def load_ohlcv(
     symbol: str,
     timeframe: str = "1h",
-    exchange_id: str = "binance",
+    exchange_id: str = "okx",
 ) -> Optional[pd.DataFrame]:
     """Load cached OHLCV data from disk."""
     safe_symbol = symbol.replace("/", "_")
@@ -103,7 +117,7 @@ def fetch_multiple(
     symbols: list[str],
     timeframe: str = "1h",
     since: Optional[str] = None,
-    exchange_id: str = "binance",
+    exchange_id: str = "okx",
 ) -> dict[str, pd.DataFrame]:
     """Fetch OHLCV for multiple symbols, returns dict of symbol → DataFrame."""
     result = {}
@@ -118,6 +132,7 @@ def fetch_multiple(
 
 if __name__ == "__main__":
     # Quick test — fetch BTC and ETH 4h data
+    # Binance blocked from this server region — use OKX
     symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
-    fetch_multiple(symbols, timeframe="4h", since="2022-01-01")
+    fetch_multiple(symbols, timeframe="4h", since="2022-01-01", exchange_id="okx")
     print("\n✅ Data pipeline test complete.")

@@ -28,8 +28,9 @@ def load_universe(symbols: list[str], timeframe: str = "1d", exchange_id: str = 
     Attempts to load from cache; fetches if not available.
     """
     import sys
-    sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-    from data_pipeline import load_ohlcv, fetch_ohlcv
+    project_root = str(Path(__file__).parent.parent.parent)
+    if project_root not in sys.path: sys.path.insert(0, project_root)
+    from scripts.data_pipeline import load_ohlcv, fetch_ohlcv
 
     closes = {}
     for symbol in symbols:
