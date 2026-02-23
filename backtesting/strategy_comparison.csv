@@ -1,4 +1,6 @@
-strategy,capital,total_pnl_usd,total_return_pct,annualized_return_pct,sharpe_ratio,max_drawdown_pct,n_trades,time_in_market_pct,backtest_days,theoretical_bound_used,final_value,n_rebalances,pair,total_fees_usd,cointegration_pval,is_cointegrated
-Enhanced Funding Rate Arb,10000,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1096,0.018667,,,,,,
-Enhanced Momentum,10000,,-63.16,-21.87,0.001,-80.85,,,1477,,3684.49,201.0,,,,
-Pairs MeanRev BTC/ETH,10000,-2812.36,-28.12,-8.29,-0.453,-41.84,38.0,,1393,,,,BTC/ETH,608.0,0.4706,False
+strategy,total_return_pct,ann_return_pct,sharpe,max_dd_pct
+Funding Rate Arb,0.0,0.0,0.0,0.0
+Momentum+Regime,62.22,12.7,0.502,-58.92
+StatArb ADA/USDT/LINK/USDT,-16.68,-4.57,-0.148,-52.66
+StatArb SOL/USDT/LINK/USDT,-42.7,-13.31,-0.263,-77.41
+StatArb ETH/USDT/LINK/USDT,-81.49,-35.12,-0.954,-96.7

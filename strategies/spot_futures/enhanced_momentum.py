@@ -159,8 +159,14 @@ class EnhancedMomentumBacktest:
 
         return score.dropna()
 
-    def run(self, price_df: pd.DataFrame, vol_df: Optional[pd.DataFrame] = None) -> dict:
-        """Run backtest."""
+    def run(
+        self,
+        price_df: pd.DataFrame,
+        vol_df: Optional[pd.DataFrame] = None,
+        btc_regime_window: int = 30,
+        btc_regime_threshold: float = -0.05,   # go flat if BTC -5% over 30 days
+    ) -> dict:
+        """Run backtest with optional BTC regime filter."""
         if vol_df is None:
             vol_df = pd.DataFrame(1.0, index=price_df.index, columns=price_df.columns)
 
@@ -170,6 +176,9 @@ class EnhancedMomentumBacktest:
         else:
             universe = price_df.columns.tolist()
 
+        # BTC regime series
+        btc_series = price_df[self.btc_symbol] if self.btc_symbol in price_df.columns else None
+
         portfolio_value = self.capital
         prev_longs = set()
         records = []
@@ -177,6 +186,28 @@ class EnhancedMomentumBacktest:
         rebalance_locs = list(range(self.mom_lb + self.vol_lb, len(price_df), self.hold_days))
 
         for idx, loc in enumerate(rebalance_locs):
+            # ── BTC Regime Filter ──────────────────────────────────
+            in_bear = False
+            if btc_series is not None and loc >= btc_regime_window:
+                btc_ret = (btc_series.iloc[loc] / btc_series.iloc[loc - btc_regime_window]) - 1
+                if btc_ret < btc_regime_threshold:
+                    in_bear = True
+
+            if in_bear:
+                # Exit all positions, hold cash
+                if prev_longs:
+                    exit_fee = len(prev_longs) * (portfolio_value / max(self.top_n, 1)) * self.fee
+                    portfolio_value -= exit_fee
+                    prev_longs = set()
+                records.append({
+                    "date": price_df.index[loc],
+                    "longs": "CASH (bear regime)",
+                    "signal_scores": {},
+                    "period_return_pct": 0.0,
+                    "portfolio_value": round(portfolio_value, 2),
+                })
+                continue
+
             score = self._compute_signal(price_df, vol_df, loc)
             if score.empty or len(score) < self.top_n:
                 continue
